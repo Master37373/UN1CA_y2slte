@@ -60,12 +60,6 @@ system/priv-app/EuiccService
 system/priv-app/IntelligentDynamicFpsService
 "
 
-# BCService
-SYSTEM_DEBLOAT+="
-system/etc/permissions/privapp-permissions-com.sec.bcservice.xml
-system/priv-app/BCService
-"
-
 # Gaming Hub
 SYSTEM_DEBLOAT+="
 system/etc/permissions/privapp-permissions-com.samsung.android.game.gamehome.xml
@@ -76,6 +70,10 @@ ADD_TO_WORK_DIR "pa2qxxx" "system" \
     "system/etc/permissions/signature-permissions-com.samsung.android.game.gamehome.xml" \
     0 0 644 "u:object_r:system_file:s0"
 
+# Google Assistant shortcut
+PRODUCT_DEBLOAT+="
+app/AssistantShell
+"
 
 # Language packs
 SYSTEM_DEBLOAT+="$(find "$WORK_DIR/system" -type d -name "*TTSVoice*" | sed "s|$WORK_DIR/system/||g")"
@@ -90,6 +88,17 @@ system/app/KidsHome_Installer
 [ "$(GET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_FRAMEWORK_CONFIG_NFC_LED_COVER_LEVEL")" -lt "30" ] && SYSTEM_DEBLOAT+="
 system/etc/permissions/privapp-permissions-com.sec.android.cover.ledcover.xml
 system/priv-app/LedCoverService
+"
+
+# Samsung Analytics
+SYSTEM_DEBLOAT+="
+system/app/DsmsAPK
+system/etc/permissions/privapp-permissions-com.samsung.android.dqagent.xml
+system/etc/permissions/privapp-permissions-com.sec.android.diagmonagent.xml
+system/etc/permissions/privapp-permissions-com.sec.android.soagent.xml
+system/priv-app/DeviceQualityAgent36
+system/priv-app/DiagMonAgent95
+system/priv-app/SOAgent76
 "
 
 # Link to Windows
@@ -193,8 +202,7 @@ system/etc/permissions/privapp-permissions-com.wssyncmldm.xml
 system/priv-app/FotaAgent
 "
 
-# SVC Agent
+# SVoiceIME
 SYSTEM_DEBLOAT+="
-system/etc/permissions/privapp-permissions-com.samsung.android.svcagent.xml
-system/priv-app/SVCAgent
+system/priv-app/SVoiceIME
 "
