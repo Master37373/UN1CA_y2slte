@@ -60,6 +60,12 @@ system/priv-app/EuiccService
 system/priv-app/IntelligentDynamicFpsService
 "
 
+# BCService
+SYSTEM_DEBLOAT+="
+system/etc/permissions/privapp-permissions-com.sec.bcservice.xml
+system/priv-app/BCService
+"
+
 # Gaming Hub
 SYSTEM_DEBLOAT+="
 system/etc/permissions/privapp-permissions-com.samsung.android.game.gamehome.xml
@@ -88,17 +94,6 @@ system/app/KidsHome_Installer
 [ "$(GET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_FRAMEWORK_CONFIG_NFC_LED_COVER_LEVEL")" -lt "30" ] && SYSTEM_DEBLOAT+="
 system/etc/permissions/privapp-permissions-com.sec.android.cover.ledcover.xml
 system/priv-app/LedCoverService
-"
-
-# Samsung Analytics
-SYSTEM_DEBLOAT+="
-system/app/DsmsAPK
-system/etc/permissions/privapp-permissions-com.samsung.android.dqagent.xml
-system/etc/permissions/privapp-permissions-com.sec.android.diagmonagent.xml
-system/etc/permissions/privapp-permissions-com.sec.android.soagent.xml
-system/priv-app/DeviceQualityAgent36
-system/priv-app/DiagMonAgent95
-system/priv-app/SOAgent76
 "
 
 # Link to Windows
@@ -195,6 +190,11 @@ system/hidden/SmartTutor
 "
 
 SET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_COMMON_CONFIG_SMARTTUTOR_PACKAGES_PATH" --delete
+
+# SVC Agent
+SYSTEM_DEBLOAT+="
+system/etc/permissions/privapp-permissions-com.samsung.android.svcagent.xml
+system/priv-app/SVCAgent
 
 # Software update
 SYSTEM_DEBLOAT+="
