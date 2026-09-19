@@ -38,13 +38,6 @@ bin/install-recovery.sh
 etc/init/vendor_flash_recovery.rc
 "
 
-# PDP apps
-SYSTEM_DEBLOAT+="
-system/preload
-"
-
-truncate -s 0 "$WORK_DIR/system/system/etc/vpl_apks_count_list.txt"
-
 # eSIM
 [[ "$TARGET_COMMON_SUPPORT_EMBEDDED_SIM" == "false" ]] && SYSTEM_DEBLOAT+="
 system/etc/permissions/privapp-permissions-com.samsung.android.app.esimkeystring.xml
@@ -58,12 +51,6 @@ system/priv-app/EuiccService
 # SmartFPSAdjuster
 [ "$TARGET_LCD_CONFIG_HFR_MODE" -lt "1" ] && SYSTEM_DEBLOAT+="
 system/priv-app/IntelligentDynamicFpsService
-"
-
-# BCService
-SYSTEM_DEBLOAT+="
-system/etc/permissions/privapp-permissions-com.sec.bcservice.xml
-system/priv-app/BCService
 "
 
 # Gaming Hub
@@ -127,9 +114,6 @@ system/etc/sysconfig/preinstalled-packages-com.mygalaxy.service.xml
 system/priv-app/MyGalaxyService
 "
 
-
-SET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_CONTEXTSERVICE_ENABLE_SURVEY_MODE" --delete
-
 # Samsung AR Emoji
 SYSTEM_DEBLOAT+="
 system/etc/default-permissions/default-permissions-com.sec.android.mimage.avatarstickers.xml
@@ -138,6 +122,19 @@ system/etc/permissions/privapp-permissions-com.sec.android.mimage.avatarstickers
 system/etc/permissions/signature-permissions-com.sec.android.mimage.avatarstickers.xml
 system/priv-app/AREmojiEditor
 system/priv-app/AvatarEmojiSticker
+"
+
+# Samsung Language Core
+SYSTEM_DEBLOAT+="
+system/etc/permissions/signature-permissions-com.samsung.android.offline.languagemodel.xml
+system/priv-app/OfflineLanguageModel_stub
+"
+
+# Samsung Messages
+SYSTEM_DEBLOAT+="
+system/etc/default-permissions/default-permissions-com.samsung.android.messaging.xml
+system/etc/permissions/privapp-permissions-com.samsung.android.messaging.xml
+system/priv-app/SamsungMessages
 "
 
 # Samsung Pass
@@ -153,6 +150,11 @@ system/etc/sysconfig/samsungauthframework.xml
 system/etc/sysconfig/samsungpassapp.xml
 system/priv-app/AuthFramework
 system/priv-app/SamsungPass
+"
+
+# Samsung Reminder
+SYSTEM_DEBLOAT+="
+system/app/SmartReminder
 "
 
 # Samsung Visit In
@@ -184,17 +186,19 @@ framework/org.carconnectivity.android.digitalkey.rangingintent.jar
 framework/org.carconnectivity.android.digitalkey.secureelement.jar
 "
 
+# SettingsHelper
+SYSTEM_DEBLOAT+="
+system/etc/permissions/privapp-permissions-com.samsung.android.settingshelper.xml
+system/etc/sysconfig/settingshelper.xml
+system/priv-app/SHClient
+"
+
 # Smart Tutor
 SYSTEM_DEBLOAT+="
 system/hidden/SmartTutor
 "
 
 SET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_COMMON_CONFIG_SMARTTUTOR_PACKAGES_PATH" --delete
-
-# SVC Agent
-SYSTEM_DEBLOAT+="
-system/etc/permissions/privapp-permissions-com.samsung.android.svcagent.xml
-system/priv-app/SVCAgent
 
 # Software update
 SYSTEM_DEBLOAT+="
@@ -205,4 +209,10 @@ system/priv-app/FotaAgent
 # SVoiceIME
 SYSTEM_DEBLOAT+="
 system/priv-app/SVoiceIME
+"
+
+# Voice Access
+SYSTEM_DEBLOAT+="
+system/app/VoiceAccess
+system/etc/sysconfig/feature-a11y-preload-voacc.xml
 "
