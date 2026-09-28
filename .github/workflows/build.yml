@@ -74,7 +74,7 @@ jobs:
         run: |
           mkdir -p out/odin
           cd out/odin
-          run: curl -L "https://www.icloud.com/iclouddrive/0b7Q3203cpBnMD1LyZwdnun5A" -o output_file.zip
+          curl -L "https://www.icloud.com/iclouddrive/0b7Q3203cpBnMD1LyZwdnun5A" -o output_file.zip
           unzip S24+_ONEUI9_ZZHL-ZZI4_BY_@miguelbarretoo.zip
           rm S24+_ONEUI9_ZZHL-ZZI4_BY_@miguelbarretoo.zip 
           cd ../..
