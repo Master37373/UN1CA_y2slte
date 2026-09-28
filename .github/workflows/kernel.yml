@@ -72,7 +72,7 @@ jobs:
 
       - name: Build ExtremeKernel
         run: |
-          KERNEL_REPO="https://github.com/At30c/SSM_990v2BYEXTREME/"
+          KERNEL_REPO="https://github.com/Master37373/SSM_990v2BYEXTREME"
           KERNEL_TMP_DIR="$HOME/kernel_build"
 
           git clone "$KERNEL_REPO" --single-branch "$KERNEL_TMP_DIR"
