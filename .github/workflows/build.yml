@@ -72,14 +72,16 @@ jobs:
 
       - name: Build dependencies and download oneui9 beta
         run: |
-          mkdir -p out/odin
-          cd out/odin
-          curl -L "https://www.icloud.com/iclouddrive/0b7Q3203cpBnMD1LyZwdnun5A" -o output_file.zip
-          unzip S24+_ONEUI9_ZZHL-ZZI4_BY_@miguelbarretoo.zip
-          rm S24+_ONEUI9_ZZHL-ZZI4_BY_@miguelbarretoo.zip 
-          cd ../..
-          source ./buildenv.sh ${{ matrix.target }}
-          ./scripts/build_dependencies.sh
+         sudo apt-get update && sudo apt-get install -y megatools
+         mkdir -p out/odin
+         cd out/odin
+         
+         megadl "https://mega.nz/file/9F1RyRhA#T7cbw907wJukHOO4jmxy3Hn_cQRMfEP46CFAHcHamfA"
+         unzip "*.zip"
+         rm *.zip 
+         cd ../..
+         source ./buildenv.sh ${{ matrix.target }}
+         ./scripts/build_dependencies.sh
 
       - name: Download stock firmwares
         uses: nick-fields/retry@v4
