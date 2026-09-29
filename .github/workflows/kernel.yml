@@ -9,6 +9,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -135,6 +139,7 @@ jobs:
           fi
 
           cd "$ZIP_DIR"
+          mkdir -p "$(dirname "$KERNEL_ZIP")"
           rm -f "$KERNEL_ZIP"
           zip -r -qq "$KERNEL_ZIP" .
           echo "Updated $KERNEL_ZIP ($(stat -c%s "$KERNEL_ZIP") bytes)"
