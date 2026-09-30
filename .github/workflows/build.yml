@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build type (debug = Pixeldrain only, test = + GitHub release, release = + OTA XML)'
+        description: 'Build type (debug = GoFile only, test = + GitHub release, release = + OTA XML)'
         type: choice
         options:
           - debug
@@ -15,6 +15,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -118,23 +121,131 @@ jobs:
           echo "Swap configured:"
           free -h
           swapon --show
-      
+
       - name: Build ROM
         run: |
           source ./buildenv.sh ${{ matrix.target }}
           ./scripts/make_rom.sh
-          
-      - name: Upload to GoFile
+
+      - name: Upload to GoFile, GitHub Release, Split, XML
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GOFILE_TOKEN: ${{ secrets.GOFILE_TOKEN }}
+          GOFILE_FOLDER_ID: ${{ secrets.GOFILE_FOLDER_ID }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPO: ${{ github.repository }}
+          UPDATER_BRANCH: main
+          BUILD_TYPE: ${{ github.event.inputs.build_type }}
         run: |
-          ZIP_FILE=$(find out -maxdepth 1 -type f -name "*.zip" | head -n 1)
+          mkdir -p split_tmp
 
-          RESPONSE=$(curl -s -F "file=@$ZIP_FILE" -F "token=${{ secrets.GOFILE_TOKEN }}" -F "folderId=${{ secrets.GOFILE_FOLDER_ID }}" "https://upload-eu-par.gofile.io/uploadFile")
+          for file in out/*.zip; do
+            if [ ! -f "$file" ]; then
+              echo "No ZIP files found to upload."
+              continue
+            fi
 
-          echo "Uploaded successfully! Download link:"
-          echo "$RESPONSE" | jq -r '.data.downloadPage'
+            FILE_NAME=$(basename "$file")
+            FILE_SIZE=$(stat -c%s "$file")
+            FILE_MD5=$(md5sum "$file" | awk '{print $1}')
+            VERSION=$(echo "$FILE_NAME" | grep -oP '\d+\.\d+\.\d+' | head -n 1)
+            if [ -z "$VERSION" ]; then
+              VERSION="0.0.${{ github.run_number }}"
+              echo "WARNING: Keine Version im Dateinamen gefunden, nutze $VERSION"
+            fi
+            BUILD_DATE=$(date +%Y-%m-%d)
 
-          echo "MD5:"
-          md5sum "$ZIP_FILE"
+            # Always upload to GoFile
+            echo "Uploading $FILE_NAME to GoFile..."
+            RESPONSE=$(curl -s -F "file=@$file" -F "token=$GOFILE_TOKEN" -F "folderId=$GOFILE_FOLDER_ID" "https://upload-eu-par.gofile.io/uploadFile")
+            GOFILE_URL=$(echo "$RESPONSE" | jq -r '.data.downloadPage')
+            echo "GoFile URL: $GOFILE_URL"
+            echo "MD5: $FILE_MD5"
+            echo "SHA256: $(sha256sum "$file" | awk '{print $1}')"
 
-          echo "SHA256:"
-          sha256sum "$ZIP_FILE"
+            # Split + GitHub Release for release + test
+            PART_LINKS=()
+            if [ "$BUILD_TYPE" = "release" ] || [ "$BUILD_TYPE" = "test" ]; then
+              echo "Splitting $FILE_NAME into 6 parts..."
+              rm -f split_tmp/*
+              cd split_tmp
+              split -d -n 6 "../$file" "${FILE_NAME}.part_"
+              cd ..
+
+              TAG_NAME="v$VERSION-${{ matrix.target }}-${{ github.run_number }}"
+              RELEASE_NAME="${VERSION}-${{ matrix.target }}-${BUILD_DATE}"
+
+              echo "Creating GitHub Release: $RELEASE_NAME"
+
+              RELEASE_DATA=$(jq -n \
+                --arg tag "$TAG_NAME" \
+                --arg name "$RELEASE_NAME" \
+                --arg sha "${{ github.sha }}" \
+                --arg body "Komplette ZIP: $GOFILE_URL" \
+                '{ tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: false }')
+
+              RELEASE_RESPONSE=$(curl -s -X POST \
+                -H "Authorization: token $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$RELEASE_DATA" \
+                https://api.github.com/repos/$RELEASE_REPO/releases)
+
+              RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
+              if [ "$RELEASE_ID" = "null" ]; then
+                echo "ERROR: Release not created. Antwort von GitHub:"
+                echo "$RELEASE_RESPONSE"
+                exit 1
+              fi
+              echo "Release created: $RELEASE_ID"
+
+              # Upload all split parts
+              for part in split_tmp/*; do
+                PART_NAME=$(basename "$part")
+                UPLOAD_RESPONSE=$(curl -s -X POST \
+                  -H "Authorization: token $GH_TOKEN" \
+                  -H "Content-Type: application/octet-stream" \
+                  --data-binary @"$part" \
+                  "https://uploads.github.com/repos/$RELEASE_REPO/releases/$RELEASE_ID/assets?name=$PART_NAME")
+                PART_URL=$(echo "$UPLOAD_RESPONSE" | jq -r '.browser_download_url')
+                PART_LINKS+=("$PART_URL")
+              done
+            fi
+
+            # Generate OTA XML for release only
+            if [ "$BUILD_TYPE" = "release" ]; then
+              echo "Generating OTA XML..."
+              git clone --single-branch --branch "$UPDATER_BRANCH" https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} updater_repo
+              cd updater_repo
+              git checkout "$UPDATER_BRANCH"
+              mkdir -p updater/v2
+              XML_FILE="updater/v2/${{ matrix.target }}.xml"
+
+              {
+                echo '<?xml version="1.0" encoding="UTF-8"?>'
+                echo '<roms>'
+                echo '  <rom channel="stable">'
+                echo "    <version>$VERSION</version>"
+                echo "    <date>$BUILD_DATE</date>"
+                echo "    <filename>$FILE_NAME</filename>"
+              } > $XML_FILE
+
+              INDEX=1
+              for url in "${PART_LINKS[@]}"; do
+                echo "    <part$INDEX>$url</part$INDEX>" >> $XML_FILE
+                INDEX=$((INDEX+1))
+              done
+
+              {
+                echo "    <md5>$FILE_MD5</md5>"
+                echo "    <size>$FILE_SIZE</size>"
+                echo '  </rom>'
+                echo '</roms>'
+              } >> $XML_FILE
+
+              git add $XML_FILE
+              git commit -m "updater: v2: ${{ matrix.target }}.xml: Update to $VERSION" || true
+              git pull --rebase origin "$UPDATER_BRANCH"
+              git push origin "$UPDATER_BRANCH"
+              cd ..
+            fi
+          done
