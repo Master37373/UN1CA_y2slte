@@ -164,13 +164,17 @@ jobs:
             DOWNLOAD_URL="https://sourceforge.net/projects/$SF_PROJECT/files/${{ matrix.target }}/$FILE_NAME/download"
             echo "$DOWNLOAD_URL" > "$GITHUB_WORKSPACE/download_url.txt"
             echo "Download-Link: $DOWNLOAD_URL"
-            echo "Link-Pruefung (HTTP-Status, kurz nach dem Upload evtl. noch 404): $(curl -sIL -o /dev/null -w '%{http_code}' "$DOWNLOAD_URL" || true)"
+            sleep 60
+            echo "Link-Pruefung (HTTP-Status, 206 oder 200 ist gut): $(curl -sL -r 0-99 -o /dev/null -w '%{http_code}' "$DOWNLOAD_URL" || true)"
 
             # OTA-XML fuer die Updater-App (nur bei release)
             if [ "$BUILD_TYPE" = "release" ]; then
               FILE_MD5=$(md5sum "$file" | awk '{print $1}')
               FILE_SIZE=$(stat -c%s "$file")
-              XML_NAME="${{ matrix.target }}.xml"
+              DEVICE_NAME=$(unzip -p "$file" build_info.txt | grep '^device=' | cut -d '=' -f 2 | tr -d '\r\n' || true)
+              if [ -z "$DEVICE_NAME" ]; then DEVICE_NAME="${{ matrix.target }}"; fi
+              echo "Geraetename fuer die XML: $DEVICE_NAME"
+              XML_NAME="$DEVICE_NAME.xml"
               {
                 echo '<?xml version="1.0" encoding="UTF-8"?>'
                 echo '<roms>'
