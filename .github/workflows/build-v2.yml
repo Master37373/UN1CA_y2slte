@@ -162,9 +162,14 @@ jobs:
             echo "SHA256: $(sha256sum "$file" | awk '{print $1}')"
 
             # Direkten Download-Link abfragen (klappt nur, wenn das GoFile-Konto es unterstuetzt)
-            FOLDER_JSON=$(curl -s -H "Authorization: Bearer $GOFILE_TOKEN" "https://api.gofile.io/contents/$GOFILE_FOLDER_ID")
-            echo "GoFile API Status: $(echo "$FOLDER_JSON" | jq -r '.status // "keine Antwort"')"
-            DIRECT_URL=$(echo "$FOLDER_JSON" | jq -r --arg n "$FILE_NAME" '[.data.children[]? | select(.name == $n) | .link][0] // empty')
+            FOLDER_JSON=$(curl -s -H "Authorization: Bearer $GOFILE_TOKEN" "https://api.gofile.io/contents/$GOFILE_FOLDER_ID" || true)
+            DIRECT_URL=""
+            if echo "$FOLDER_JSON" | jq -e . > /dev/null 2>&1; then
+              echo "GoFile API Status: $(echo "$FOLDER_JSON" | jq -r '.status // "unbekannt"')"
+              DIRECT_URL=$(echo "$FOLDER_JSON" | jq -r --arg n "$FILE_NAME" '[.data.children[]? | select(.name == $n) | .link][0] // empty' || true)
+            else
+              echo "GoFile API hat kein JSON geliefert. Anfang der Antwort: $(echo "$FOLDER_JSON" | head -c 150)"
+            fi
             if [ -n "$DIRECT_URL" ]; then
               echo "Direktlink gefunden: $DIRECT_URL"
               echo "$DIRECT_URL" > "$GITHUB_WORKSPACE/gofile_url.txt"
