@@ -222,11 +222,23 @@ jobs:
             # GitHub Release (nur Link in den Notizen, keine grosse Datei)
             if [ "$BUILD_TYPE" = "release" ] || [ "$BUILD_TYPE" = "test" ]; then
               TAG_NAME="v$VERSION-${{ matrix.target }}-${{ github.run_number }}"
-              gh release create "$TAG_NAME" \
-                --repo "${{ github.repository }}" \
-                --target "${{ github.sha }}" \
-                --title "$VERSION-${{ matrix.target }}-$BUILD_DATE" \
-                --notes "Download: $DOWNLOAD_URL"
+              RELEASE_DATA=$(jq -n \
+                --arg tag "$TAG_NAME" \
+                --arg name "$VERSION-${{ matrix.target }}-$BUILD_DATE" \
+                --arg sha "${{ github.sha }}" \
+                --arg body "Download: $DOWNLOAD_URL" \
+                '{ tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: false }')
+              RELEASE_RESPONSE=$(curl -s -X POST \
+                -H "Authorization: token $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$RELEASE_DATA" \
+                "https://api.github.com/repos/${{ github.repository }}/releases")
+              if [ "$(echo "$RELEASE_RESPONSE" | jq -r '.id')" = "null" ]; then
+                echo "WARNUNG: GitHub-Release nicht erstellt. Antwort:"
+                echo "$RELEASE_RESPONSE" | head -c 400
+              else
+                echo "GitHub-Release erstellt: $TAG_NAME"
+              fi
             fi
           done
 
