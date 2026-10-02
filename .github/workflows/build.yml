@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build type (debug = only SourceForge, test = + GitHub release, release = + Updater-XML in Repo)'
+        description: 'Build type (debug = nur SourceForge, test = + GitHub release, release = + Updater-XML im Repo)'
         type: choice
         options:
           - debug
@@ -74,6 +74,20 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           echo -n "${{ secrets.PLATFORM_KEY_PK8 }}" | base64 --decode > security/unica_platform.pk8
           echo -n "${{ secrets.PLATFORM_KEY_PEM }}" | base64 --decode > security/unica_platform.x509.pem
+          echo -n "${{ secrets.OTA_KEY_PK8 }}" | base64 --decode > security/unica_ota.pk8
+          echo -n "${{ secrets.OTA_KEY_PEM }}" | base64 --decode > security/unica_ota.x509.pem
+          cp security/unica_ota.pk8 security/artisanrom_ota.pk8
+          cp security/unica_ota.x509.pem security/artisanrom_ota.x509.pem
+
+          # Eigene Schluessel als "offiziell" erkennen (nur wenn Platform- und OTA-Key vorhanden sind)
+          if [ -s security/unica_platform.pk8 ] && [ -s security/unica_ota.pk8 ]; then
+            PLAT_SHA1=$(sha1sum security/unica_platform.pk8 | cut -d " " -f 1)
+            OTA_SHA1=$(sha1sum security/unica_ota.pk8 | cut -d " " -f 1)
+            sed -i "s/PLATFORM_KEY_SHA1=\"[0-9a-f]*\"/PLATFORM_KEY_SHA1=\"$PLAT_SHA1\"/; s/OTA_KEY_SHA1=\"[0-9a-f]*\"/OTA_KEY_SHA1=\"$OTA_SHA1\"/" scripts/internal/gen_config_file.sh
+            grep -n "_KEY_SHA1=" scripts/internal/gen_config_file.sh
+          else
+            echo "WARNUNG: Schluessel fehlen, Build bleibt UNOFFICIAL"
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -150,7 +164,7 @@ jobs:
             VERSION=$(echo "$FILE_NAME" | grep -oP '\d+\.\d+\.\d+' | head -n 1)
             if [ -z "$VERSION" ]; then
               VERSION="0.0.${{ github.run_number }}"
-              echo "WARNING: No Version found in the filename, using $VERSION"
+              echo "WARNING: Keine Version im Dateinamen gefunden, nutze $VERSION"
             fi
             BUILD_DATE=$(date +%Y-%m-%d)
 
@@ -165,15 +179,15 @@ jobs:
             echo "$DOWNLOAD_URL" > "$GITHUB_WORKSPACE/download_url.txt"
             echo "Download-Link: $DOWNLOAD_URL"
             sleep 60
-            echo "Link-check (HTTP-status, 206 or 200 is good): $(curl -sL -r 0-99 -o /dev/null -w '%{http_code}' "$DOWNLOAD_URL" || true)"
+            echo "Link-Pruefung (HTTP-Status, 206 oder 200 ist gut): $(curl -sL -r 0-99 -o /dev/null -w '%{http_code}' "$DOWNLOAD_URL" || true)"
 
-            # OTA-XML for the Updater-App (only release)
+            # OTA-XML fuer die Updater-App (nur bei release)
             if [ "$BUILD_TYPE" = "release" ]; then
               FILE_MD5=$(md5sum "$file" | awk '{print $1}')
               FILE_SIZE=$(stat -c%s "$file")
               DEVICE_NAME=$(unzip -p "$file" build_info.txt | grep '^device=' | cut -d '=' -f 2 | tr -d '\r\n' || true)
               if [ -z "$DEVICE_NAME" ]; then DEVICE_NAME="${{ matrix.target }}"; fi
-              echo "Device name for the XML: $DEVICE_NAME"
+              echo "Geraetename fuer die XML: $DEVICE_NAME"
               XML_NAME="$DEVICE_NAME.xml"
               {
                 echo '<?xml version="1.0" encoding="UTF-8"?>'
@@ -205,7 +219,7 @@ jobs:
               )
             fi
 
-            # GitHub Release (Link in teh notes only, no large file)
+            # GitHub Release (nur Link in den Notizen, keine grosse Datei)
             if [ "$BUILD_TYPE" = "release" ] || [ "$BUILD_TYPE" = "test" ]; then
               TAG_NAME="v$VERSION-${{ matrix.target }}-${{ github.run_number }}"
               gh release create "$TAG_NAME" \
