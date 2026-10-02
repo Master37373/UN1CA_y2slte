@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build type (debug = nur SourceForge, test = + GitHub release, release = + Updater-XML im Repo)'
+        description: 'Build type (debug = only SourceForge, test = + GitHub release, release = + Updater-XML in Repo)'
         type: choice
         options:
           - debug
@@ -150,7 +150,7 @@ jobs:
             VERSION=$(echo "$FILE_NAME" | grep -oP '\d+\.\d+\.\d+' | head -n 1)
             if [ -z "$VERSION" ]; then
               VERSION="0.0.${{ github.run_number }}"
-              echo "WARNING: Keine Version im Dateinamen gefunden, nutze $VERSION"
+              echo "WARNING: No Version found in the filename, using $VERSION"
             fi
             BUILD_DATE=$(date +%Y-%m-%d)
 
@@ -165,15 +165,15 @@ jobs:
             echo "$DOWNLOAD_URL" > "$GITHUB_WORKSPACE/download_url.txt"
             echo "Download-Link: $DOWNLOAD_URL"
             sleep 60
-            echo "Link-Pruefung (HTTP-Status, 206 oder 200 ist gut): $(curl -sL -r 0-99 -o /dev/null -w '%{http_code}' "$DOWNLOAD_URL" || true)"
+            echo "Link-check (HTTP-status, 206 or 200 is good): $(curl -sL -r 0-99 -o /dev/null -w '%{http_code}' "$DOWNLOAD_URL" || true)"
 
-            # OTA-XML fuer die Updater-App (nur bei release)
+            # OTA-XML for the Updater-App (only release)
             if [ "$BUILD_TYPE" = "release" ]; then
               FILE_MD5=$(md5sum "$file" | awk '{print $1}')
               FILE_SIZE=$(stat -c%s "$file")
               DEVICE_NAME=$(unzip -p "$file" build_info.txt | grep '^device=' | cut -d '=' -f 2 | tr -d '\r\n' || true)
               if [ -z "$DEVICE_NAME" ]; then DEVICE_NAME="${{ matrix.target }}"; fi
-              echo "Geraetename fuer die XML: $DEVICE_NAME"
+              echo "Device name for the XML: $DEVICE_NAME"
               XML_NAME="$DEVICE_NAME.xml"
               {
                 echo '<?xml version="1.0" encoding="UTF-8"?>'
@@ -205,7 +205,7 @@ jobs:
               )
             fi
 
-            # GitHub Release (nur Link in den Notizen, keine grosse Datei)
+            # GitHub Release (Link in teh notes only, no large file)
             if [ "$BUILD_TYPE" = "release" ] || [ "$BUILD_TYPE" = "test" ]; then
               TAG_NAME="v$VERSION-${{ matrix.target }}-${{ github.run_number }}"
               gh release create "$TAG_NAME" \
